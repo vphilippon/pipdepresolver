@@ -42,21 +42,22 @@ def install(ctx, src_file):
             else:
                 click.echo(exc.message, err=True)
                 ctx.exit(exc.returncode)
+        reqs_to_install = re.findall(CHECK_RE, output, flags=re.MULTILINE)
+        click.echo(reqs_to_fix)
 
         # 3. `pip install <missing dependencies>` to fix.
-        reqs = re.findall(CHECK_RE, output, flags=re.MULTILINE)
-        click.echo(reqs)
-        if reqs:
+        if not reqs_to_fix:
+            # 4a. All dependencies compatible
+            print('DONE!')
+            break
+
+        for req in reqs_to_fix:
             try:
-                output = subprocess.check_output(['pip', 'install', ' '.join(reqs)])
+                output = subprocess.check_output(['pip', 'install', req])
                 click.echo(output)
             except subprocess.CalledProcessError as exc:
                 click.echo(exc.message, err=True)
                 ctx.exit(exc.returncode)
-        else:
-            # 4a. All dependencies compatible
-            print('DONE!')
-            break
     else:
         # 4b. Cycled "indefinitely" (5 times) without finding a solution.
         print('OH NO! No solution found. Check your dependencies.')
