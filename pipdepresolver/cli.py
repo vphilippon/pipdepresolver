@@ -42,7 +42,7 @@ def install(ctx, src_file):
             else:
                 click.echo(exc.message, err=True)
                 ctx.exit(exc.returncode)
-        reqs_to_install = re.findall(CHECK_RE, output, flags=re.MULTILINE)
+        reqs_to_fix = re.findall(CHECK_RE, output, flags=re.MULTILINE)
         click.echo(reqs_to_fix)
 
         # 3. `pip install <missing dependencies>` to fix.
