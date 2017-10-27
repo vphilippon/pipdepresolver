@@ -19,9 +19,10 @@ def install(ctx, src_file):
     """
     Resolve and install a set of requirements.
     """
+    previous_freeze = []
 
-    # Get in a cycle of `pip install -r src_file` & `pip check` & `pip install <missing_reqs>`.
-    for round_nb in range(5):  # Max 5 rounds.
+    # Get in a cycle of `pip install -r src_file` & `pip check` & `pip install <reqs_to_fix>`.
+    for round_nb in range(10):  # Max 10 rounds.
         click.echo('ROUND {}'.format(round_nb))
 
         # 1. Run a first `pip install -r src_file`.
@@ -31,6 +32,21 @@ def install(ctx, src_file):
         except subprocess.CalledProcessError as exc:
             click.echo(exc.message, err=True)
             ctx.exit(exc.returncode)
+
+        # Note the current environment state to detect looping on incompatible dependencies.
+        try:
+            output = subprocess.check_output(['pip', 'freeze'])
+            click.echo(output)
+        except subprocess.CalledProcessError as exc:
+            click.echo(exc.message, err=True)
+            ctx.exit(exc.returncode)
+        
+        if output in previous_freeze:
+            # 4b. We detect that we were previously in this state, so we're looping on incompatible dependencies.
+            print('OH NO! Looping on incompatible dependencies. Check your dependencies.')
+            break
+
+        previous_freeze.append(output)
 
         # 2. `pip check` to get incompatible dependencies.
         try:
@@ -51,7 +67,7 @@ def install(ctx, src_file):
             print('DONE!')
             break
 
-        for req in reqs_to_fix:
+        for req in sorted(reqs_to_fix):
             try:
                 output = subprocess.check_output(['pip', 'install', req])
                 click.echo(output)
@@ -59,5 +75,5 @@ def install(ctx, src_file):
                 click.echo(exc.message, err=True)
                 ctx.exit(exc.returncode)
     else:
-        # 4b. Cycled "indefinitely" (5 times) without finding a solution.
-        print('OH NO! No solution found. Check your dependencies.')
+        # 4c. Cycled "indefinitely" (10 times) without finding a solution.
+        print('OH NO! No solution found after 10 rounds, thats odd. Check your dependencies.')
